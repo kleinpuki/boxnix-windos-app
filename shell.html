@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com">
+<title>botnixcore Dashboard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="bar">
+  <div class="logo"><i></i>botnix<span>core</span></div>
+  <div class="crumb" id="crumb"></div>
+  <div class="grow"></div>
+  <button class="upd" id="updBtn">⬆ Update verfügbar</button>
+  <button class="ib" id="checkBtn" title="Nach Updates suchen">⇣</button>
+  <div class="me" id="me"></div>
+</div>
+<main id="main"></main>
+
+<div class="ov" id="updOv"><div class="modal">
+  <h2>🚀 Neues Update verfügbar <span class="badge" id="updCount"></span></h2>
+  <p class="sub" id="updMeta"></p>
+  <div class="msg" id="updMsg"></div>
+  <ul class="files" id="updFiles"></ul>
+  <div class="prog" id="updProg"><div class="spin"></div><span id="updStep">Lade …</span></div>
+  <div class="acts" id="updActs"><button class="btn" id="laterBtn">Später</button><button class="btn p" id="installBtn">Jetzt updaten</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<script src="shell.js"></script>
+</body>
+</html>
