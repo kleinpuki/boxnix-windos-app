@@ -9,7 +9,7 @@ const need = name => {
 const AdmZip = need('adm-zip');
 
 const api = async (settings, p, raw = false) => {
-  const headers = { 'User-Agent': 'botnixcore-dashboard', Accept: raw ? 'application/octet-stream' : 'application/vnd.github+json' };
+  const headers = { 'User-Agent': 'botnixcore-dashboard', Accept: raw ? '*/*' : 'application/vnd.github+json' };
   if (settings.githubToken) headers.Authorization = `Bearer ${settings.githubToken}`;
   const r = await fetch(`https://api.github.com${p}`, { headers, redirect: 'follow', signal: AbortSignal.timeout(raw ? 120000 : 15000) });
   if (r.status === 404) throw new Error('Repository nicht gefunden. Ist es privat? Dann in den Einstellungen einen GitHub-Token eintragen.');
