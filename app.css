@@ -123,6 +123,7 @@ input[type=color].x{height:40px;padding:4px}
 .card>b{display:block;margin-bottom:10px}
 .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .savebar{position:sticky;bottom:16px;display:flex;align-items:center;gap:12px;justify-content:flex-end;background:var(--s);border:1px solid var(--b);border-radius:14px;padding:10px 12px 10px 16px;box-shadow:0 16px 40px -10px rgba(0,0,0,.6);margin-top:16px;transform:translateY(120%);opacity:0;pointer-events:none;transition:.2s}
+.savebar:not(.on){display:none}
 .savebar.on{transform:none;opacity:1;pointer-events:auto}
 .savebar span{color:var(--warn);margin-right:auto;font-weight:600}
 .extra{display:flex;align-items:center;gap:14px}

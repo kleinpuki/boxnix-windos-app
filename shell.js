@@ -207,6 +207,7 @@ const renderField = f => {
     case 'timers': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4].map(i => { const tv = (v.timers || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `⏲️ Nachricht ${i + 1}`), h('div', { class: 'fields' }, fld('Kanal', select('tmCh' + i, L.text, tv.ch)), fld('Alle wie viele Minuten (mind. 10)', num('tmEvery' + i, tv.every || 60, 10, 10080)), fld('Text', area('tmText' + i, tv.text, 'z. B. Vergesst nicht, unsere Regeln zu lesen!', 'min-height:70px'), true))); }));
     case 'links': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const lv = (v.linkRoles || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `🔗 Verbindung ${i + 1}`), h('div', { class: 'fields' }, fld('Wenn Rolle', select('linkSrc' + i, L.role, lv.src)), fld('dann gib Rolle', select('linkDst' + i, L.role, lv.dst)))); }));
     case 'rnicks': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4, 5, 6, 7].map(i => { const nv = (v.roleNicks || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `🏷️ Name ${i + 1}`), h('div', { class: 'fields' }, fld('Rolle', select('rnRole' + i, L.role, nv.role)), fld('Name', txt('rnFmt' + i, nv.fmt, '👑 Owner {name}', 40)))); }));
+    case 'feeds': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4].map(i => { const fv = (v.feeds || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `📡 Feed ${i + 1}`), h('div', { class: 'fields' }, fld('Feed-Link (RSS)', txt('feedUrl' + i, fv.url, 'https://rsshub.app/tiktok/user/@name', 400), true), fld('Discord-Kanal', select('feedCh' + i, L.text, fv.ch)), fld('Rolle pingen', select('feedPing' + i, L.role, fv.ping)), fld('Nachricht', txt('feedMsg' + i, fv.msg, '🎵 Neues TikTok von {quelle}: {titel} {link}', 500), true))); }));
     case 'shop': return h('div', { class: 'full' }, h('h3', { class: 'sec' }, '🛒 Rollen-Shop'), h('p', { class: 'sub', style: 'font-size:13px;margin:0 0 10px' }, 'Mitglieder kaufen Rollen mit /buy. Die Bot-Rolle muss über diesen Rollen stehen.'),
       h('div', { class: 'cards' }, [0, 1, 2, 3, 4, 5].map(i => { const sv = (v.shop || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `Artikel ${i + 1}`), h('div', { class: 'fields' }, fld('Rolle', select('shopRole' + i, L.role, sv.role)), fld('Preis in Coins', num('shopPrice' + i, sv.price, 1, null, '5000')))); })));
     default: return null;
@@ -225,6 +226,64 @@ const collect = root => {
     else body[k] = el.value;
   });
   return body;
+};
+
+let siteCss = null;
+const getCss = async () => {
+  if (siteCss != null) return siteCss;
+  const r = await B.get('/api/css');
+  siteCss = r.status === 200 && r.data && r.data.css ? r.data.css : '';
+  return siteCss;
+};
+const XFIX = ':host{display:block}.xw{font:14px/1.5 "Segoe UI",system-ui,sans-serif;color:var(--t)}.xw .panel{margin-bottom:16px}.xmsg{padding:14px;color:var(--m)}';
+const loadExtras = async (tab, preHost, exHost, q = '') => {
+  const gid = G.guild.id;
+  const roots = [preHost, exHost].map(hh => hh.shadowRoot || hh.attachShadow({ mode: 'open' }));
+  roots[1].innerHTML = '<div class="xmsg">Lade Aktionen & Listen …</div>';
+  let d;
+  try { d = await request('GET', `/api/guild/${gid}/extra/${tab.id}${q ? `?q=${encodeURIComponent(q)}` : ''}`); }
+  catch (e) { if (!e.silent) roots[1].innerHTML = `<div class="xmsg">⚠️ ${String(e.message).replace(/[<>&]/g, '')}</div>`; return; }
+  if (!G || G.guild.id !== gid) return;
+  const css = await getCss();
+  const fill = (root, html) => {
+    root.innerHTML = html ? `<style>${css}${XFIX}</style><div class="xw">${html}</div>` : '';
+    if (root._wired) return;
+    root._wired = true;
+    root.addEventListener('submit', async e => {
+      e.preventDefault();
+      const form = e.target;
+      const sub = e.submitter;
+      const conf = (sub && sub.dataset.confirm) || form.dataset.confirm;
+      if (conf && !confirm(conf)) return;
+      const fd = new FormData(form);
+      if (sub && sub.name) fd.append(sub.name, sub.value);
+      const body = {};
+      for (const [k, v] of fd) { if (typeof v !== 'string') continue; body[k] = k in body ? [].concat(body[k], v) : v; }
+      for (const inp of form.querySelectorAll('input[type=file]')) {
+        const f = inp.files && inp.files[0];
+        if (f) body[inp.name] = await f.text();
+      }
+      const m = (form.getAttribute('action') || '').match(/\/guild\/\d+\/do\/([\w-]+)/);
+      if ((form.getAttribute('method') || 'get').toLowerCase() !== 'post' || !m) return loadExtras(tab, preHost, exHost, body.q || '');
+      form.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      const r = await B.post(`/api/guild/${gid}/do/${m[1]}`, body);
+      if (r.status === 401) { me = null; renderMe(); return loginView(); }
+      const msg = (r.data && (r.data.msg || r.data.error)) || `Fehler ${r.status}`;
+      toast(r.status === 200 ? `✓ ${msg}` : msg, r.status === 200 ? 'ok' : 'err');
+      loadExtras(tab, preHost, exHost, q);
+    });
+    root.addEventListener('click', e => {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      e.preventDefault();
+      const href = a.getAttribute('href');
+      const t = href.match(/^\/guild\/(\d+)\?tab=([\w-]+)/);
+      if (t && t[1] === gid && tabById(t[2])) { if (confirmLeave()) renderGuild(t[2]); return; }
+      if (href.startsWith('/')) B.openWeb(href); else if (/^https?:/i.test(href)) B.openExternal(href);
+    });
+  };
+  fill(roots[0], d.pre);
+  fill(roots[1], d.extra);
 };
 
 const tabView = tab => {
@@ -260,7 +319,13 @@ const tabView = tab => {
     saveBar = null;
     out.push(h('p', { class: 'sub' }, tab.desc));
   }
-  if (tab.extra) out.unshift(h('section', { class: 'panel extra' }, h('div', null, h('h2', null, '🧰 Aktionen & Listen'), h('p', { style: 'margin:0;color:var(--m)' }, 'Aktionen wie Nachrichten senden, Mitglieder moderieren oder Listen verwalten öffnest du im Web-Dashboard.')), h('button', { class: 'btn s', onclick: () => B.openWeb(`/guild/${G.guild.id}?tab=${tab.id}`) }, 'Öffnen ↗')));
+  if (tab.extra) {
+    const preHost = h('div', { class: 'xhost' });
+    const exHost = h('div', { class: 'xhost' });
+    out.unshift(preHost);
+    out.push(exHost);
+    loadExtras(tab, preHost, exHost);
+  }
   return out;
 };
 
