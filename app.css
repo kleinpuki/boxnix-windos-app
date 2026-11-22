@@ -149,3 +149,8 @@ input[type=color].x{height:40px;padding:4px}
 .toast.ok{border-left-color:var(--on)}
 .empty{color:var(--m);padding:10px 0}
 @media (max-width:1150px){.grid2,.cards{grid-template-columns:1fr}}
+details.more{margin-top:4px}
+details.more>summary{cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:12px;border:1px dashed var(--b);color:var(--m);font-weight:600}
+details.more>summary:hover{border-color:var(--a);color:var(--t)}
+details.more[open]>summary{margin-bottom:12px}
+details.more>summary::-webkit-details-marker{display:none}
