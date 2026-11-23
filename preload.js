@@ -4,6 +4,7 @@ const on = (ch, cb) => { const f = (_e, d) => cb(d); ipcRenderer.on(ch, f); retu
 
 contextBridge.exposeInMainWorld('botnix', {
   info: () => ipcRenderer.invoke('app:info'),
+  seen: () => ipcRenderer.invoke('app:seen'),
   get: p => ipcRenderer.invoke('api', 'GET', p),
   post: (p, body) => ipcRenderer.invoke('api', 'POST', p, body || {}),
   login: () => ipcRenderer.invoke('auth:login'),

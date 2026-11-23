@@ -171,6 +171,18 @@ const num = (key, val, min, max, ph) => h('input', { class: 'x', type: 'number',
 const txt = (key, val, ph, max) => h('input', { class: 'x', 'data-k': key, value: val ?? '', placeholder: ph || '', maxlength: max || null });
 const area = (key, val, ph, style) => h('textarea', { class: 'x', 'data-k': key, placeholder: ph || '', style: style || null }, val ?? '');
 
+const repK = () => Math.random().toString(36).slice(2, 8);
+const repHead = title => h('div', { style: 'display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px' }, h('b', { style: 'margin:0' }, title), h('button', { class: 'btn s rep-del', type: 'button' }, '🗑️ Entfernen'));
+const rep = (items, card, max, addLabel) => {
+  const list = h('div', { class: 'cards' }, items.map((v, i) => card(v, i)));
+  const cnt = h('span', { style: 'color:var(--m)' });
+  const add = h('button', { class: 'btn s', type: 'button' }, `➕ ${addLabel}`);
+  const upd = () => { cnt.textContent = `${list.children.length}/${max}`; add.disabled = list.children.length >= max; };
+  add.onclick = () => { if (list.children.length >= max) return; list.append(card({}, list.children.length, repK())); upd(); markDirty(); };
+  list.addEventListener('click', e => { const b = e.target.closest('.rep-del'); if (!b) return; b.closest('.card').remove(); upd(); markDirty(); });
+  upd();
+  return h('div', { class: 'full' }, list, h('div', { style: 'display:flex;gap:12px;align-items:center;margin-top:10px' }, add, cnt));
+};
 const more = (els, show) => [h('div', { class: 'cards full' }, els.slice(0, show)), els.length > show ? h('details', { class: 'more full' }, h('summary', null, `➕ Weitere anzeigen (${els.length - show})`), h('div', { class: 'cards' }, els.slice(show))) : null];
 const renderField = f => {
   const [t, k, label, a] = f;
@@ -191,36 +203,29 @@ const renderField = f => {
     case 'chans': return fld(label, chipBox(k, a === 'news' ? L.news : a === 'textcat' ? L.text.concat(L.cat.map(o => ({ id: o.id, name: '📁 ' + o.name }))) : L.text, v[k]), true);
     case 'ids': return fld(label, area(k, (v[k] || []).join('\n'), '123456789012345678', 'min-height:70px'), true);
     case 'cmds': return fld(label, chipBox(k, G.cmds.map(n => ({ id: n, name: '/' + n })), v[k]), true);
-    case 'tickets': {
-      const KEYS = G.ticketKeys || ['support', 'bug', 'partnership', 'other'];
-      const EMO = G.ticketEmo || ['🎫', '🐛', '🤝', '💬'];
-      const cards = KEYS.map((key, i) => {
-        const tv = (v.ticketTypes || []).find(z => z.key === key) || {};
-        return { used: !!tv.label, el: h('div', { class: 'card' }, h('b', null, `${tv.emoji || EMO[i]} Ticket-Art ${i + 1}`), h('div', { class: 'fields' },
-          fld('Anzeigename', txt('ticketLabel' + i, tv.label, 'z. B. Allgemeiner Support', 80)),
-          fld('Emoji', txt('ticketEmoji' + i, tv.emoji || EMO[i], EMO[i], 8)),
-          fld('Discord-Kategorie', select('ticketCat' + i, L.cat, tv.category)),
-          fld('Eigene Team-Rolle (optional)', select('ticketRole' + i, L.role, tv.role)),
-          fld('Beschreibung im Menü', txt('ticketDesc' + i, tv.desc, 'z. B. Fragen rund um den Server', 100), true),
-          [0, 1, 2].map(q => fld(`Frage ${q + 1} im Formular (optional)`, txt(`ticketQ${i}_${q}`, (tv.qs || [])[q], 'z. B. Worum geht es?', 45))))) };
-      });
-      const last = cards.reduce((m, x, i) => x.used ? i : m, -1);
-      return more(cards.map(x => x.el), Math.max(4, last + 2));
-    }
+    case 'tickets': return rep(v.ticketTypes || [], (tv, i, key) => { const k = key || tv.key; return h('div', { class: 'card' }, repHead(`${tv.emoji || '🎫'} ${tv.label || 'Neue Ticket-Art'}`), h('div', { class: 'fields' },
+      fld('Anzeigename', txt(`tkLabel__${k}`, tv.label, 'z. B. Allgemeiner Support', 80)), fld('Emoji', txt(`tkEmoji__${k}`, tv.emoji, '🎫', 8)),
+      fld('Discord-Kategorie', select(`tkCat__${k}`, L.cat, tv.category)), fld('Eigene Team-Rolle (optional)', select(`tkRole__${k}`, L.role, tv.role)),
+      fld('Beschreibung im Menü', txt(`tkDesc__${k}`, tv.desc, 'z. B. Fragen rund um den Server', 100), true),
+      [0, 1, 2].map(q => fld(`Frage ${q + 1} im Formular (optional)`, txt(`tkQ__${k}__${q}`, (tv.qs || [])[q], 'z. B. Worum geht es?', 45))))); }, 25, 'Ticket-Art hinzufügen');
     case 'lvl': return [0, 1, 2].map(i => { const l = (v.levelRoles || [])[i] || {}; return [fld(`Belohnung ${i + 1}: ab Level`, num('lv' + i, l.level, 1, 500)), fld('Rolle', select('lr' + i, L.role, l.role))]; });
     case 'timers': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4].map(i => { const tv = (v.timers || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `⏲️ Nachricht ${i + 1}`), h('div', { class: 'fields' }, fld('Kanal', select('tmCh' + i, L.text, tv.ch)), fld('Alle wie viele Minuten (mind. 10)', num('tmEvery' + i, tv.every || 60, 10, 10080)), fld('Text', area('tmText' + i, tv.text, 'z. B. Vergesst nicht, unsere Regeln zu lesen!', 'min-height:70px'), true))); }));
     case 'links': {
       const MODES = [['sync', '🔄 Geben und wieder entfernen'], ['add', '➕ Nur geben'], ['remove', '➖ Rolle B entfernen']];
-      const list = v.linkRoles || [];
-      return more(Array.from({ length: 20 }, (_, i) => { const lv = list[i] || {}; return h('div', { class: 'card' }, h('b', null, `🔗 Regel ${i + 1}`), h('div', { class: 'fields' },
-        fld('Wenn jemand Rolle A hat', select('linkSrc' + i, L.role, lv.src)), fld('Rolle B', select('linkDst' + i, L.role, lv.dst)),
-        fld('Was passiert mit Rolle B?', h('select', { class: 'x', 'data-k': 'linkMode' + i }, MODES.map(([k, l]) => h('option', { value: k, selected: (lv.mode || 'sync') === k ? true : null }, l))), true))); }), Math.max(3, list.length + 2));
+      return rep(v.linkRoles || [], (lv, i, key) => { const k = key || `r${i}`; return h('div', { class: 'card' }, repHead('🔗 Regel'), h('div', { class: 'fields' },
+        fld('Wenn jemand Rolle A hat', select(`lkSrc__${k}`, L.role, lv.src)), fld('Rolle B', select(`lkDst__${k}`, L.role, lv.dst)),
+        fld('Was passiert mit Rolle B?', h('select', { class: 'x', 'data-k': `lkMode__${k}` }, MODES.map(([m, l]) => h('option', { value: m, selected: (lv.mode || 'sync') === m ? true : null }, l))), true))); }, 100, 'Regel hinzufügen');
     }
-    case 'rnicks': {
-      const list = v.roleNicks || [];
-      return more(Array.from({ length: 15 }, (_, i) => { const nv = list[i] || {}; return h('div', { class: 'card' }, h('b', null, `🏷️ Name ${i + 1}`), h('div', { class: 'fields' }, fld('Rolle', select('rnRole' + i, L.role, nv.role)), fld('Name', txt('rnFmt' + i, nv.fmt, '👑 Owner {name}', 40)))); }), Math.max(3, list.length + 2));
-    }
+    case 'rnicks': return rep(v.roleNicks || [], (nv, i, key) => { const k = key || `n${i}`; return h('div', { class: 'card' }, repHead('🏷️ Name'), h('div', { class: 'fields' }, fld('Rolle', select(`rnRole__${k}`, L.role, nv.role)), fld('Name', txt(`rnFmt__${k}`, nv.fmt, '👑 Owner {name}', 40)))); }, 50, 'Name hinzufügen');
     case 'feeds': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4].map(i => { const fv = (v.feeds || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `📡 Feed ${i + 1}`), h('div', { class: 'fields' }, fld('Feed-Link (RSS)', txt('feedUrl' + i, fv.url, 'https://rsshub.app/tiktok/user/@name', 400), true), fld('Discord-Kanal', select('feedCh' + i, L.text, fv.ch)), fld('Rolle pingen', select('feedPing' + i, L.role, fv.ping)), fld('Nachricht', txt('feedMsg' + i, fv.msg, '🎵 Neues TikTok von {quelle}: {titel} {link}', 500), true))); }));
+    case 'days': return fld(label, chipBox(k, [['1', 'Mo'], ['2', 'Di'], ['3', 'Mi'], ['4', 'Do'], ['5', 'Fr'], ['6', 'Sa'], ['0', 'So']].map(([id, name]) => ({ id, name })), (v[k] || []).map(String)), true);
+    case 'apps': {
+      const list = v.appPositions || [];
+      return more(Array.from({ length: 6 }, (_, i) => { const p = list[i] || {}; return h('div', { class: 'card' }, h('b', null, `${p.emoji || '📝'} Stelle ${i + 1}`), h('div', { class: 'fields' },
+        fld('Name', txt('apName' + i, p.name, 'z. B. Moderator', 40)), fld('Emoji', txt('apEmoji' + i, p.emoji, '🛡️', 8)), fld('Rolle beim Annehmen', select('apRole' + i, L.role, p.role)), fld('Kurzbeschreibung', txt('apDesc' + i, p.desc, 'z. B. Hilft bei Fragen', 100)),
+        fld('Fragen (eine pro Zeile, max. 5)', area('apQ' + i, (p.questions || []).join('\n'), 'Wie alt bist du?', 'min-height:90px'), true),
+        h('div', { class: 'row full' }, h('div', null, h('b', null, 'Bewerbungen offen')), h('button', { class: `tgl${p.open !== false ? ' on' : ''}`, 'data-k': 'apOpen' + i, 'data-t': 'sw', onclick: e => { e.currentTarget.classList.toggle('on'); markDirty(); } })))); }), Math.max(2, list.length + 1));
+    }
     case 'shop': return h('div', { class: 'full' }, h('h3', { class: 'sec' }, '🛒 Rollen-Shop'), h('p', { class: 'sub', style: 'font-size:13px;margin:0 0 10px' }, 'Mitglieder kaufen Rollen mit /buy. Die Bot-Rolle muss über diesen Rollen stehen.'),
       h('div', { class: 'cards' }, [0, 1, 2, 3, 4, 5].map(i => { const sv = (v.shop || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `Artikel ${i + 1}`), h('div', { class: 'fields' }, fld('Rolle', select('shopRole' + i, L.role, sv.role)), fld('Preis in Coins', num('shopPrice' + i, sv.price, 1, null, '5000')))); })));
     default: return null;
@@ -381,8 +386,19 @@ $('installBtn').onclick = async () => {
 };
 $('checkBtn').onclick = async () => { toast('Suche nach Updates …'); await B.check(); };
 
+const showChanges = i => {
+  const items = i.changes && i.changes.length ? i.changes : String((i.lastNotes && i.lastNotes.message) || '').split('\n').map(x => x.replace(/^[-*•]\s*/, '').trim()).filter(Boolean);
+  if (!items.length) return B.seen();
+  $('newVer').textContent = i.version;
+  $('newList').replaceChildren(...items.map(t => h('li', null, t)));
+  $('newOv').classList.add('on');
+  $('newOk').onclick = () => { $('newOv').classList.remove('on'); B.seen(); };
+};
+
 (async () => {
   const i = await B.info();
+  if (!i.seenVersion) B.seen();
+  else if (i.seenVersion !== i.version) showChanges(i);
   if (i.pending) showUpdate({ ...i.pending, later: i.laterSha === i.pending.latestSha });
   start();
 })();

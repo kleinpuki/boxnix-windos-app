@@ -18,7 +18,8 @@ let win = null;
 let timer = null;
 let busy = false;
 
-const version = () => { try { return JSON.parse(fs.readFileSync(path.join(ENV.appDir, 'version.json'), 'utf8')).version; } catch { return '1.0.0'; } };
+const versionInfo = () => { try { return JSON.parse(fs.readFileSync(path.join(ENV.appDir, 'version.json'), 'utf8')); } catch { return { version: '1.0.0' }; } };
+const version = () => versionInfo().version || '1.0.0';
 const send = (ch, data) => { if (win && !win.isDestroyed()) win.webContents.send(ch, data); };
 const saveState = () => writeJson(STATE_FILE, state);
 
@@ -120,7 +121,8 @@ ipcMain.handle('api', (_e, method, p, body) => callApi(['GET', 'POST'].includes(
 ipcMain.handle('auth:login', () => login());
 ipcMain.handle('auth:logout', async () => { await callApi('GET', '/api/logout'); await ses().clearStorageData({ storages: ['cookies'] }); return true; });
 ipcMain.handle('open:web', (_e, p) => { const u = String(p || '/'); shell.openExternal(BASE + (u.startsWith('/') ? u : '/')); });
-ipcMain.handle('app:info', () => ({ version: version(), fromUpdate: ENV.fromUpdate, installedSha: state.installedSha, lastCheck: state.lastCheck, lastError: state.lastError, pending, laterSha: state.laterSha, base: BASE }));
+ipcMain.handle('app:seen', () => { state.seenVersion = version(); saveState(); return true; });
+ipcMain.handle('app:info', () => ({ version: version(), changes: Array.isArray(versionInfo().changes) ? versionInfo().changes.slice(0, 40) : [], seenVersion: state.seenVersion || null, lastNotes: state.lastNotes || null, fromUpdate: ENV.fromUpdate, installedSha: state.installedSha, lastCheck: state.lastCheck, lastError: state.lastError, pending, laterSha: state.laterSha, base: BASE }));
 ipcMain.handle('update:check', () => check(true));
 ipcMain.handle('update:later', () => { if (pending) { state.laterSha = pending.latestSha; saveState(); } return true; });
 ipcMain.handle('update:install', async () => {
@@ -131,6 +133,7 @@ ipcMain.handle('update:install', async () => {
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
     const res = await downloadAndApply(settings, pending.latestSha, { userData: USER, installedDir: ENV.installedDir, filesDir: path.join(app.getPath('documents'), 'botnixcore-updates', `${stamp}-${pending.latestSha.slice(0, 7)}`) });
     state.installedSha = pending.latestSha;
+    state.lastNotes = { message: pending.message || '', date: pending.date || '', commits: pending.commits || 1 };
     state.laterSha = null;
     saveState();
     pending = null;
