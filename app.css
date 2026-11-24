@@ -163,3 +163,26 @@ details.more>summary::-webkit-details-marker{display:none}
 .modesw button.on{background:var(--s);color:var(--t);box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .side.simple:not(.searching) [data-x]{display:none}
 .content.simple-ov .ovg[data-x],.content.simple-ov .mod[data-x]{display:none}
+
+.asbtn{position:fixed;right:22px;bottom:22px;z-index:60;display:flex;align-items:center;gap:8px;padding:12px 18px;border:0;border-radius:999px;background:linear-gradient(135deg,var(--a),#7c5cff);color:#fff;font:700 14px inherit;box-shadow:0 10px 30px rgba(61,107,255,.4);cursor:pointer;transition:transform .15s}
+.asbtn:hover{transform:translateY(-2px)}.asbtn.on{opacity:0;pointer-events:none}
+.aspanel{position:fixed;right:18px;bottom:18px;top:64px;width:min(420px,calc(100vw - 24px));z-index:61;display:flex;flex-direction:column;background:var(--s);border:1px solid var(--b);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.45);overflow:hidden}
+.aspanel[hidden]{display:none}
+.ash{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--b);font:700 15px inherit}
+.asbeta{font:700 11px inherit;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--a) 20%,transparent);color:var(--a)}
+.asx{margin-left:auto;border:0;background:transparent;color:var(--m);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px}.asx:hover{background:var(--s2);color:var(--t)}
+.asmsgs{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.asm{max-width:88%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.5;word-wrap:break-word}
+.asm.a{background:var(--s2);border:1px solid var(--b);align-self:flex-start;border-bottom-left-radius:4px}
+.asm.u{background:var(--a);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.asm.aserr{border-color:color-mix(in srgb,#ff6b6b 50%,var(--b));color:#ffb3b3}
+.asprop ul{margin:8px 0;padding-left:18px}.asprop li{margin:6px 0}
+.asfrom{color:var(--m);text-decoration:line-through}.asact{display:flex;gap:8px;margin-top:8px}.asact .btn{padding:8px 12px;font-size:13px}
+.asok{color:#46e3b0;font-weight:700}.aserr .asfrom,.asact .aserr{color:#ff8a8a}
+.aschips{display:flex;flex-wrap:wrap;gap:6px}.aschips button{border:1px solid var(--b);background:var(--s);color:var(--t);border-radius:999px;padding:7px 11px;font:600 12.5px inherit;cursor:pointer}.aschips button:hover{border-color:var(--a)}
+.asin{display:flex;gap:8px;align-items:flex-end;padding:12px;border-top:1px solid var(--b)}.asmut{color:var(--m);font-size:13px}.asin textarea{flex:1;resize:none;background:var(--s2);border:1px solid var(--b);border-radius:12px;color:var(--t);padding:10px 12px;font:14px inherit}.asin textarea:focus{outline:none;border-color:var(--a)}.asin .btn{padding:0 16px;height:44px}
+.asnote{margin:0;padding:0 14px 12px;font-size:11.5px;color:var(--m)}
+.asdots i{display:inline-block;width:6px;height:6px;margin-right:3px;border-radius:50%;background:var(--m);animation:asd 1s infinite}.asdots i:nth-child(2){animation-delay:.15s}.asdots i:nth-child(3){animation-delay:.3s}
+@keyframes asd{50%{opacity:.25;transform:translateY(-3px)}}
+.asw{color:var(--m)}
+@media(max-width:640px){.aspanel{top:64px;right:8px;bottom:8px}.asbtn span{display:none}.asbtn{padding:14px}}

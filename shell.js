@@ -61,6 +61,7 @@ const renderMe = () => {
 document.addEventListener('click', e => { const m = document.querySelector('.menu.on'); if (m && !$('me').contains(e.target)) m.classList.remove('on'); });
 
 const loginView = () => {
+  hideAssistant();
   crumb();
   show(h('div', { class: 'center' }, h('div', null,
     h('div', { class: 'biglogo' }),
@@ -83,6 +84,7 @@ const start = async () => {
 };
 
 const servers = async refresh => {
+  hideAssistant();
   G = null;
   crumb(h('b', null, 'Meine Server'));
   if (refresh) { loading('Lade Server …'); try { me = await request('GET', '/api/me?neu=1'); } catch (e) { if (!e.silent) failed(e.message, () => servers(true)); return; } }
@@ -109,6 +111,76 @@ const guild = async (id, tabId) => {
 
 const tabById = id => G.tabs.find(t => t.id === id);
 
+
+let asGid = null;
+const assistant = gid => {
+  let box = $('aspanel');
+  if (box && asGid === gid) return;
+  asGid = gid;
+  if (box) box.remove();
+  const old = $('asbtn'); if (old) old.remove();
+  const K = `as:${gid}`;
+  let hist = [];
+  try { hist = JSON.parse(sessionStorage.getItem(K) || '[]'); } catch {}
+  const save = () => { try { sessionStorage.setItem(K, JSON.stringify(hist.slice(-20))); } catch {} };
+  const last = () => [...hist].reverse().find(m => m.role === 'assistant');
+  const md = t => { const d = h('div'); String(t).split(/(\*\*.+?\*\*)/).forEach(part => { if (/^\*\*.+\*\*$/.test(part)) d.append(h('b', null, part.slice(2, -2))); else part.split('\n').forEach((line, i) => { if (i) d.append(h('br')); d.append(line); }); }); return d; };
+  const msgs = h('div', { class: 'asmsgs' });
+  const add = (role, node, cls = '') => { const d = h('div', { class: `asm ${role === 'user' ? 'u' : 'a'} ${cls}` }, node); msgs.append(d); msgs.scrollTop = msgs.scrollHeight; return d; };
+  const ta = h('textarea', { rows: 2, maxlength: 1500, placeholder: 'Frag mich etwas …' });
+  const send = h('button', { class: 'btn p', type: 'submit' }, '➤');
+  const prop = pr => {
+    const act = h('div', { class: 'asact' });
+    const ok = h('button', { class: 'btn p', type: 'button' }, '✅ Übernehmen');
+    const no = h('button', { class: 'btn', type: 'button' }, 'Verwerfen');
+    act.append(ok, no);
+    add('a', h('div', null, h('b', null, 'Vorschlag'), h('ul', null, pr.items.map(i => h('li', null, `${i.ic} ${i.tab}: ${i.label}`, h('br'), h('span', { class: 'asfrom' }, i.from), ' → ', h('b', null, i.to)))), act), 'asprop');
+    ok.onclick = async () => {
+      ok.disabled = no.disabled = true; ok.textContent = '⏳ Speichere …';
+      try {
+        const j = await request('POST', `/api/guild/${gid}/assistant/apply`, { pid: pr.pid });
+        act.replaceChildren(h('span', { class: j.ok ? 'asok' : 'aserr' }, j.msg || j.error));
+        const l = last(); if (l) l.n = `${l.n || ''}${j.ok ? ' (übernommen)' : ' (nicht übernommen)'}`; save();
+        if (j.ok) { G = await request('GET', `/api/guild/${gid}`); setTimeout(() => renderGuild(curTab), 900); }
+      } catch (e) { if (!e.silent) { act.replaceChildren(h('span', { class: 'aserr' }, e.message)); } }
+    };
+    no.onclick = () => { act.replaceChildren(h('span', { class: 'asmut' }, 'Verworfen')); const l = last(); if (l) { l.n = `${l.n || ''} (verworfen)`; save(); } };
+  };
+  add('a', h('div', null, 'Hi! Ich helfe dir beim Einrichten. Sag mir einfach, was du brauchst, z. B. „Richte Tickets für meinen RP-Server ein“. Ich ändere nichts ohne deine Bestätigung.'));
+  const chips = h('div', { class: 'aschips' }, ['❓ Was fehlt noch?', '🎭 Server für Roleplay einrichten', '🛡️ Wie schütze ich meinen Server?', '🎫 Tickets einrichten'].map(t => h('button', { type: 'button', onclick: () => { ta.value = t.replace(/^\S+\s/, ''); form.requestSubmit(); } }, t)));
+  msgs.append(chips);
+  hist.forEach(m => add(m.role, md(m.content)));
+  const form = h('form', { class: 'asin', onsubmit: async e => {
+    e.preventDefault();
+    const q = ta.value.trim();
+    if (!q || send.disabled) return;
+    ta.value = '';
+    add('user', md(q)); hist.push({ role: 'user', content: q }); save();
+    send.disabled = true;
+    const t0 = Date.now();
+    const lbl = h('span', { class: 'asw' }, 'denkt nach …');
+    const w = add('a', h('div', null, h('span', { class: 'asdots' }, h('i'), h('i'), h('i')), ' ', lbl), 'aswait');
+    const iv = setInterval(() => { const n = Math.round((Date.now() - t0) / 1000); lbl.textContent = n < 20 ? `denkt nach … ${n} s` : `dauert etwas länger … ${n} s`; }, 1000);
+    try {
+      const j = await request('POST', `/api/guild/${gid}/assistant`, { messages: hist.map(m => ({ role: m.role, content: m.content + (m.n ? `\n${m.n}` : '') })) });
+      w.remove();
+      if (j.error) { add('a', h('div', null, j.error), 'aserr'); hist.pop(); save(); return; }
+      add('a', md(j.reply));
+      hist.push({ role: 'assistant', content: j.reply, n: j.proposal ? `(Vorschlag: ${j.proposal.items.map(i => `${i.label} → ${i.to}`).join(', ')})` : '' }); save();
+      if (j.proposal) prop(j.proposal);
+      if (j.skipped && j.skipped.length) add('a', h('span', { class: 'asmut' }, `Nicht übernommen, weil ungültig: ${j.skipped.join(', ')}`));
+    } catch (err) { w.remove(); if (!err.silent) add('a', h('div', null, err.message), 'aserr'); hist.pop(); save(); }
+    finally { clearInterval(iv); send.disabled = false; ta.focus(); }
+  } }, ta, send);
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); } });
+  const btn = h('button', { class: 'asbtn', id: 'asbtn', type: 'button' }, '🤖', h('span', null, 'Assistent'));
+  box = h('aside', { class: 'aspanel', id: 'aspanel', hidden: true }, h('div', { class: 'ash' }, h('b', null, '🤖 botnix Assistent'), h('span', { class: 'asbeta' }, 'Beta'), h('button', { class: 'asx', type: 'button', onclick: () => toggle(false) }, '✕')), msgs, form, h('p', { class: 'asnote' }, 'Antworten können bis zu 30 Sekunden dauern. Die KI kann Fehler machen, prüf die Vorschläge.'));
+  const toggle = on => { box.hidden = !on; btn.classList.toggle('on', on); try { on ? localStorage.setItem('asopen', '1') : localStorage.removeItem('asopen'); } catch {} if (on) { ta.focus(); msgs.scrollTop = msgs.scrollHeight; } };
+  btn.onclick = () => toggle(box.hidden);
+  document.body.append(btn, box);
+  try { if (localStorage.getItem('asopen')) toggle(true); } catch {}
+};
+const hideAssistant = () => { ['asbtn', 'aspanel'].forEach(x => { const e = $(x); if (e) e.remove(); }); asGid = null; };
 const renderGuild = tabId => {
   dirty = false;
   curTab = tabId;
@@ -129,6 +201,7 @@ const renderGuild = tabId => {
     h('div', { class: 'ghead' }, gicon(G.guild), h('div', null, h('h1', null, G.guild.name), h('span', null, `${fmt(G.guild.members)} Mitglieder · ${fmt(G.guild.online)} online`))),
     tab ? tabView(tab) : overview()));
   show(h('div', { class: 'dash' }, side, content));
+  assistant(G.guild.id);
   setMode(mode);
 };
 
@@ -223,6 +296,19 @@ const renderField = f => {
         fld('Was passiert mit Rolle B?', h('select', { class: 'x', 'data-k': `lkMode__${k}` }, MODES.map(([m, l]) => h('option', { value: m, selected: (lv.mode || 'sync') === m ? true : null }, l))), true))); }, 100, 'Regel hinzufügen');
     }
     case 'rnicks': return rep(v.roleNicks || [], (nv, i, key) => { const k = key || `n${i}`; return h('div', { class: 'card' }, repHead('🏷️ Name'), h('div', { class: 'fields' }, fld('Rolle', select(`rnRole__${k}`, L.role, nv.role)), fld('Name', txt(`rnFmt__${k}`, nv.fmt, '👑 Owner {name}', 40)))); }, 50, 'Name hinzufügen');
+    case 'tgroups': return rep(v.teamGroups || [], (gv, i, key) => { const k = key || `g${i}`; return h('div', { class: 'card' }, repHead(`${gv.emoji || '👥'} ${gv.name || 'Neue Gruppe'}`), h('input', { type: 'hidden', 'data-k': `tgKey__${k}`, value: gv.key || '' }), h('div', { class: 'fields' },
+      fld('Name', txt(`tgName__${k}`, gv.name, 'z. B. Support-Team', 40)), fld('Emoji', txt(`tgEmoji__${k}`, gv.emoji, '🎧', 8)),
+      fld('Leitungsrolle (verwaltet diese Gruppe)', select(`tgLead__${k}`, L.role, gv.lead)), fld('Farbe', h('input', { class: 'x', type: 'color', 'data-k': `tgColor__${k}`, value: /^#[0-9a-f]{6}$/i.test(gv.color || '') ? gv.color : '#5b8cff' })),
+      fld('Ränge dieser Gruppe (bis zu 10)', chipBox(`tgRanks__${k}`, L.role, gv.ranks), true))); }, 8, 'Gruppe hinzufügen');
+    case 'tachs': {
+      const KINDS = [['closed', '🎫 Tickets geschlossen'], ['claims', '🙋 Tickets übernommen'], ['duty', '⏱️ Stunden im Dienst'], ['days', '📅 Tage im Team'], ['ups', '⬆️ Beförderungen']];
+      return rep(v.teamAchs || [], (av, i, key) => { const k = key || `a${i}`; return h('div', { class: 'card' }, repHead(`${av.emoji || '🏅'} ${av.name || 'Neues Achievement'}`), h('input', { type: 'hidden', 'data-k': `taKey__${k}`, value: av.key || '' }), h('div', { class: 'fields' },
+        fld('Name', txt(`taName__${k}`, av.name, 'z. B. Ticket-Profi', 40)), fld('Emoji', txt(`taEmoji__${k}`, av.emoji, '🏅', 8)),
+        fld('Wenn', h('select', { class: 'x', 'data-k': `taKind__${k}` }, KINDS.map(([m, l]) => h('option', { value: m, selected: (av.kind || 'closed') === m ? true : null }, l)))),
+        fld('mindestens', num(`taN__${k}`, av.n, 1, 100000, '100')),
+        fld('Nachricht (Erinnerung, optional)', txt(`taMsg__${k}`, av.msg, 'Danke {user}, du hast {n} Tickets geschafft!', 300), true),
+        fld('Rolle als Belohnung (optional)', select(`taRole__${k}`, L.role, av.role)))); }, 15, 'Achievement hinzufügen');
+    }
     case 'ccmds': {
       const MODES = [['toggle', '🔄 Geben / nehmen'], ['add', '➕ Nur geben'], ['remove', '➖ Nur entfernen']];
       const sw = (key, on, label) => h('div', { class: 'row full' }, h('div', null, h('b', null, label)), h('button', { class: `tgl${on ? ' on' : ''}`, 'data-k': key, 'data-t': 'sw', type: 'button', onclick: e => { e.currentTarget.classList.toggle('on'); markDirty(); } }));

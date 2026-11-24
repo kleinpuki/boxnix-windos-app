@@ -1,11 +1,9 @@
 {
-  "version": "2.10.0",
+  "version": "2.12.0",
   "changes": [
-    "Neu: Schnellstart und Einfach-Modus, der Einstieg geht jetzt viel leichter",
-    "Neu: Eigene Slash-Befehle, Warn-Stufen, Entbannungsanträge und /temprole",
-    "Neu: FiveM-Status, Boost-Belohnungen und interne Ticket-Notizen",
-    "Neu: Reddit, Bluesky und Kick als Social-Benachrichtigung",
-    "Schneller: weniger RAM, weniger Last und ein schnelleres Dashboard",
-    "Fix: Medien-Kanäle, Auto-Threads und verzögerte Antworten"
+    "Neu: Team-Verwaltung 2.0 mit Team-Gruppen und Rängen",
+    "Team-Dienst, Team-Übersicht pro Gruppe und Achievements einstellbar",
+    "Mitglieder direkt im Dashboard befördern, herabstufen, verwarnen und entfernen",
+    "Übersichtlicher: viele Module zu einer Seite zusammengefasst"
   ]
 }

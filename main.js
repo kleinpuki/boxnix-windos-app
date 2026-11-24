@@ -75,7 +75,7 @@ const createWindow = () => {
 const callApi = async (method, p, body) => {
   if (!/^\/api\//.test(String(p))) return { status: 400, data: { error: 'Ungültige Anfrage.' } };
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 90000);
+  const t = setTimeout(() => ctrl.abort(), /\/assistant$/.test(String(p)) ? 180000 : 90000);
   try {
     const r = await ses().fetch(BASE + p, {
       method, credentials: 'include', signal: ctrl.signal,
