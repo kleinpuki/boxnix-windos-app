@@ -115,15 +115,21 @@ const renderGuild = tabId => {
   const tab = tabId ? tabById(tabId) : null;
   crumb(h('a', { onclick: () => { if (confirmLeave()) servers(); } }, 'Meine Server'), tab ? h('a', { onclick: () => { if (confirmLeave()) renderGuild(); } }, G.guild.name) : h('b', null, G.guild.name), tab ? h('b', null, tab.name) : null);
   const go = t => () => { if (confirmLeave()) renderGuild(t); };
-  const side = h('div', { class: 'side' },
-    h('input', { class: 'x', type: 'search', placeholder: 'Modul suchen …', oninput: e => { const v = e.target.value.toLowerCase(); side.querySelectorAll('a[data-n]').forEach(a => { a.style.display = a.dataset.n.includes(v) ? '' : 'none'; }); side.querySelectorAll('.sgt').forEach(s => { s.style.display = v ? 'none' : ''; }); } }),
+  let mode = 'simple';
+  try { mode = localStorage.getItem('dmode') || 'simple'; } catch {}
+  const setMode = m => { mode = m; side.classList.toggle('simple', m === 'simple'); side.querySelectorAll('.modesw button').forEach(b => b.classList.toggle('on', b.dataset.mode === m)); const ov = document.querySelector('.content'); if (ov) ov.classList.toggle('simple-ov', m === 'simple'); try { localStorage.setItem('dmode', m); } catch {} };
+  const vis = t => t.simple || (tab && tab.id === t.id);
+  const side = h('div', { class: `side${mode === 'simple' ? ' simple' : ''}` },
+    h('div', { class: 'modesw' }, h('button', { type: 'button', 'data-mode': 'simple', class: mode === 'simple' ? 'on' : '', onclick: () => setMode('simple') }, '👶 Einfach'), h('button', { type: 'button', 'data-mode': 'all', class: mode === 'all' ? 'on' : '', onclick: () => setMode('all') }, '🧩 Alle Module')),
+    h('input', { class: 'x', type: 'search', placeholder: 'Modul suchen …', oninput: e => { const v = e.target.value.toLowerCase(); side.classList.toggle('searching', !!v); side.querySelectorAll('a[data-n]').forEach(a => { a.style.display = a.dataset.n.includes(v) ? '' : 'none'; }); side.querySelectorAll('.sgt').forEach(s => { s.style.display = v ? 'none' : ''; }); } }),
     h('a', { class: tab ? '' : 'on', onclick: go() }, h('span', { class: 'e' }, '🏠'), 'Übersicht'),
-    G.groups.map(([name, ids]) => [h('div', { class: 'sgt' }, name), ids.map(tabById).filter(Boolean).map(t =>
-      h('a', { class: tab && tab.id === t.id ? 'on' : '', 'data-n': t.name.toLowerCase(), onclick: go(t.id) }, h('span', { class: 'e' }, t.ic), t.name, t.sw ? h('i', { class: `d${G.values[t.sw] ? ' on' : ''}` }) : null))]));
+    G.groups.map(([name, ids]) => [h('div', { class: 'sgt', 'data-x': ids.map(tabById).filter(Boolean).some(vis) ? null : '1' }, name), ids.map(tabById).filter(Boolean).map(t =>
+      h('a', { class: tab && tab.id === t.id ? 'on' : '', 'data-x': vis(t) ? null : '1', 'data-n': t.name.toLowerCase(), onclick: go(t.id) }, h('span', { class: 'e' }, t.ic), t.name, t.sw ? h('i', { class: `d${G.values[t.sw] ? ' on' : ''}` }) : null))]));
   const content = h('div', { class: 'content' }, h('div', { class: 'wrap' },
     h('div', { class: 'ghead' }, gicon(G.guild), h('div', null, h('h1', null, G.guild.name), h('span', null, `${fmt(G.guild.members)} Mitglieder · ${fmt(G.guild.online)} online`))),
     tab ? tabView(tab) : overview()));
   show(h('div', { class: 'dash' }, side, content));
+  setMode(mode);
 };
 
 const toggle = async (t, btn) => {
@@ -152,9 +158,9 @@ const overview = () => {
         h('div', { class: 'check' }, G.checks.map(c => h('a', { class: c.ok ? 'ok' : '', onclick: () => renderGuild(c.tab) }, h('i', null, c.ok ? '✓' : ''), h('span', null, c.label))))),
       h('section', { class: 'panel', style: 'margin:0' }, h('h2', null, 'Top 5'), h('p', null, 'Die aktivsten Mitglieder nach Level.'),
         s.top.length ? h('div', { class: 'lb' }, s.top.map((m, i) => h('div', null, h('b', null, MED[i] || `#${i + 1}`), h('span', null, m.name), h('em', null, `Level ${m.level}`)))) : h('p', { class: 'empty' }, 'Noch keine Aktivität.'))),
-    G.groups.map(([name, ids]) => h('section', { class: 'ovg' }, h('h2', null, name), h('div', { class: 'mods' }, ids.map(tabById).filter(Boolean).map(t => {
+    G.groups.map(([name, ids]) => h('section', { class: 'ovg', 'data-x': ids.map(tabById).filter(Boolean).some(t => t.simple) ? null : '1' }, h('h2', null, name), h('div', { class: 'mods' }, ids.map(tabById).filter(Boolean).map(t => {
       const tg = t.sw ? h('button', { class: `tgl${G.values[t.sw] ? ' on' : ''}`, title: 'Ein/Aus', onclick: e => { e.stopPropagation(); toggle(t, e.currentTarget); } }) : null;
-      return h('div', { class: 'mod', onclick: () => renderGuild(t.id) }, h('span', { class: 'e' }, t.ic), h('div', null, h('b', null, t.name), h('small', null, t.desc)), tg);
+      return h('div', { class: 'mod', 'data-x': t.simple ? null : '1', onclick: () => renderGuild(t.id) }, h('span', { class: 'e' }, t.ic), h('div', null, h('b', null, t.name), h('small', null, t.desc)), tg);
     })))),
   ];
 };
@@ -217,6 +223,23 @@ const renderField = f => {
         fld('Was passiert mit Rolle B?', h('select', { class: 'x', 'data-k': `lkMode__${k}` }, MODES.map(([m, l]) => h('option', { value: m, selected: (lv.mode || 'sync') === m ? true : null }, l))), true))); }, 100, 'Regel hinzufügen');
     }
     case 'rnicks': return rep(v.roleNicks || [], (nv, i, key) => { const k = key || `n${i}`; return h('div', { class: 'card' }, repHead('🏷️ Name'), h('div', { class: 'fields' }, fld('Rolle', select(`rnRole__${k}`, L.role, nv.role)), fld('Name', txt(`rnFmt__${k}`, nv.fmt, '👑 Owner {name}', 40)))); }, 50, 'Name hinzufügen');
+    case 'ccmds': {
+      const MODES = [['toggle', '🔄 Geben / nehmen'], ['add', '➕ Nur geben'], ['remove', '➖ Nur entfernen']];
+      const sw = (key, on, label) => h('div', { class: 'row full' }, h('div', null, h('b', null, label)), h('button', { class: `tgl${on ? ' on' : ''}`, 'data-k': key, 'data-t': 'sw', type: 'button', onclick: e => { e.currentTarget.classList.toggle('on'); markDirty(); } }));
+      return rep(v.customCmds || [], (cv, i, key) => { const k = key || `c${i}`; return h('div', { class: 'card' }, repHead(`⚡ /${cv.name || 'neuer-befehl'}`), h('div', { class: 'fields' },
+        fld('Name (ohne /)', txt(`ccName__${k}`, cv.name, 'regeln-kurz', 32)), fld('Beschreibung', txt(`ccDesc__${k}`, cv.desc, 'Zeigt die wichtigsten Regeln', 100)),
+        fld('Antwort', area(`ccReply__${k}`, cv.reply, 'Hey {user}, willkommen auf {server}!', 'min-height:80px'), true),
+        fld('Rolle (optional)', select(`ccRole__${k}`, L.role, cv.role)),
+        fld('Was passiert mit der Rolle?', h('select', { class: 'x', 'data-k': `ccMode__${k}` }, MODES.map(([m, l]) => h('option', { value: m, selected: (cv.roleMode || 'toggle') === m ? true : null }, l)))),
+        sw(`ccEmbed__${k}`, cv.embed, 'Als Embed senden'), sw(`ccEph__${k}`, cv.eph, 'Nur für den Nutzer sichtbar'))); }, 50, 'Befehl hinzufügen');
+    }
+    case 'wsteps': {
+      const ACTS = [['timeout', '🔇 Timeout'], ['kick', '👢 Kick'], ['ban', '🔨 Bann']];
+      return rep(v.warnSteps || [], (wv, i, key) => { const k = key || `w${i}`; return h('div', { class: 'card' }, repHead('⚠️ Warn-Stufe'), h('div', { class: 'fields' },
+        fld('Bei so vielen Warns', num(`wsN__${k}`, wv.n, 1, 50, '3')),
+        fld('Aktion', h('select', { class: 'x', 'data-k': `wsAct__${k}` }, ACTS.map(([m, l]) => h('option', { value: m, selected: (wv.act || 'timeout') === m ? true : null }, l)))),
+        fld('Timeout-Dauer in Minuten', num(`wsMin__${k}`, wv.min ?? 60, 1, 40320)))); }, 10, 'Stufe hinzufügen');
+    }
     case 'feeds': return h('div', { class: 'cards full' }, [0, 1, 2, 3, 4].map(i => { const fv = (v.feeds || [])[i] || {}; return h('div', { class: 'card' }, h('b', null, `📡 Feed ${i + 1}`), h('div', { class: 'fields' }, fld('Feed-Link (RSS)', txt('feedUrl' + i, fv.url, 'https://rsshub.app/tiktok/user/@name', 400), true), fld('Discord-Kanal', select('feedCh' + i, L.text, fv.ch)), fld('Rolle pingen', select('feedPing' + i, L.role, fv.ping)), fld('Nachricht', txt('feedMsg' + i, fv.msg, '🎵 Neues TikTok von {quelle}: {titel} {link}', 500), true))); }));
     case 'days': return fld(label, chipBox(k, [['1', 'Mo'], ['2', 'Di'], ['3', 'Mi'], ['4', 'Do'], ['5', 'Fr'], ['6', 'Sa'], ['0', 'So']].map(([id, name]) => ({ id, name })), (v[k] || []).map(String)), true);
     case 'apps': {

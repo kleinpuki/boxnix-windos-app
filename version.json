@@ -1,11 +1,11 @@
 {
-  "version": "2.8.0",
+  "version": "2.10.0",
   "changes": [
-    "Nach jedem Update zeigt die App jetzt, was neu ist",
-    "Ticket-Arten frei hinzufügen und löschen (bis zu 25)",
-    "Rollen-Automatik: bis zu 100 Regeln und 50 Rollen-Namen",
-    "Neue Module: Bewerbungen, Meetings, Support-Warteraum, Twitch, Registrierung, Status-Rolle",
-    "Temp-Voice-Kontroll-Panel und Captcha bei der Verifizierung",
-    "Neues Design passend zur Website"
+    "Neu: Schnellstart und Einfach-Modus, der Einstieg geht jetzt viel leichter",
+    "Neu: Eigene Slash-Befehle, Warn-Stufen, Entbannungsanträge und /temprole",
+    "Neu: FiveM-Status, Boost-Belohnungen und interne Ticket-Notizen",
+    "Neu: Reddit, Bluesky und Kick als Social-Benachrichtigung",
+    "Schneller: weniger RAM, weniger Last und ein schnelleres Dashboard",
+    "Fix: Medien-Kanäle, Auto-Threads und verzögerte Antworten"
   ]
 }

@@ -157,3 +157,9 @@ details.more>summary::-webkit-details-marker{display:none}
 .changes{margin:0 0 14px;padding:0;list-style:none;display:grid;gap:8px;max-height:50vh;overflow:auto}
 .changes li{display:flex;gap:10px;padding:10px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--b)}
 .changes li:before{content:'✨';flex:none}
+
+.modesw{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin-bottom:8px;background:var(--s2);border:1px solid var(--b);border-radius:12px}
+.modesw button{border:0;background:transparent;color:var(--m);font:600 12.5px inherit;padding:7px 4px;border-radius:9px;cursor:pointer}
+.modesw button.on{background:var(--s);color:var(--t);box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.side.simple:not(.searching) [data-x]{display:none}
+.content.simple-ov .ovg[data-x],.content.simple-ov .mod[data-x]{display:none}
