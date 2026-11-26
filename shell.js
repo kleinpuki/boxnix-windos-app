@@ -29,6 +29,9 @@ const fmtDate = d => { try { return new Date(d).toLocaleString('de-DE', { dateSt
 const gicon = (g, cls = 'gic') => h('div', { class: cls }, g.icon ? h('img', { src: `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=96`, alt: '' }) : String(g.name || '?').slice(0, 2).toUpperCase());
 const crumb = (...parts) => $('crumb').replaceChildren(...parts.filter(Boolean).flatMap((p, i) => i ? [h('span', null, '›'), p] : [p]));
 
+const LS = { get: (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const tabOn = t => (t.on != null ? !!t.on : !!(t.sw && G.values[t.sw]));
+const hasSw = t => t.on != null || !!t.sw;
 let me = null;
 let G = null;
 let dirty = false;
@@ -52,6 +55,7 @@ const renderMe = () => {
   const menu = h('div', { class: 'menu' },
     h('button', { onclick: () => { menu.classList.remove('on'); if (confirmLeave()) { dirty = false; servers(true); } } }, '🗂️ Meine Server'),
     h('button', { onclick: () => { menu.classList.remove('on'); B.openWeb('/'); } }, '🌐 Website öffnen'),
+    h('button', { onclick: e => { const v = !LS.get('reopen', true); LS.set('reopen', v); e.currentTarget.textContent = `${v ? '✅' : '⬜'} Letzten Server beim Start öffnen`; } }, `${LS.get('reopen', true) ? '✅' : '⬜'} Letzten Server beim Start öffnen`),
     h('button', { onclick: async () => { menu.classList.remove('on'); await B.logout(); me = null; renderMe(); loginView(); } }, '🚪 Abmelden'));
   box.replaceChildren(
     me.user.avatar ? h('img', { src: `https://cdn.discordapp.com/avatars/${me.user.id}/${me.user.avatar}.png?size=64`, alt: '' }) : h('div', { class: 'av' }, me.user.name.slice(0, 1)),
@@ -79,6 +83,8 @@ const start = async () => {
   try {
     me = await request('GET', '/api/me');
     renderMe();
+    const last = LS.get('last', null);
+    if (last && LS.get('reopen', true) && me.guilds.some(g => g.id === last.g && g.lvl !== 'invite')) return guild(last.g, last.t || undefined);
     servers();
   } catch (e) { if (!e.silent) failed(e.message, start); }
 };
@@ -86,13 +92,17 @@ const start = async () => {
 const servers = async refresh => {
   hideAssistant();
   G = null;
+  LS.set('last', null);
   crumb(h('b', null, 'Meine Server'));
   if (refresh) { loading('Lade Server …'); try { me = await request('GET', '/api/me?neu=1'); } catch (e) { if (!e.silent) failed(e.message, () => servers(true)); return; } }
   const LV = { admin: 'Admin', manage: 'Verwalter', role: 'Team-Zugang' };
-  const list = h('div', { class: 'servers' }, me.guilds.map(g => {
+  const fav = new Set(LS.get('fav', []));
+  const sorted = [...me.guilds].sort((a, b) => (fav.has(b.id) - fav.has(a.id)) || ((b.lvl !== 'invite') - (a.lvl !== 'invite')));
+  const list = h('div', { class: 'servers' }, sorted.map(g => {
     const has = g.lvl !== 'invite';
-    return h('div', { class: `srv${has ? '' : ' off'}`, 'data-n': g.name.toLowerCase(), onclick: () => has ? guild(g.id) : B.openExternal(g.invite) },
-      h('div', { class: 'h' }, gicon(g), h('span', null, g.name), has ? h('em', { class: `pill${g.lvl === 'admin' ? ' on' : ''}` }, LV[g.lvl]) : null),
+    const star = has ? h('button', { class: `star${fav.has(g.id) ? ' on' : ''}`, title: 'Als Favorit oben anheften', onclick: e => { e.stopPropagation(); fav.has(g.id) ? fav.delete(g.id) : fav.add(g.id); LS.set('fav', [...fav]); servers(); } }, fav.has(g.id) ? '★' : '☆') : null;
+    return h('div', { class: `srv${has ? '' : ' off'}${fav.has(g.id) ? ' fav' : ''}`, 'data-n': g.name.toLowerCase(), onclick: () => has ? guild(g.id) : B.openExternal(g.invite) },
+      h('div', { class: 'h' }, gicon(g), h('span', null, g.name), star, has ? h('em', { class: `pill${g.lvl === 'admin' ? ' on' : ''}` }, LV[g.lvl]) : null),
       has ? h('button', { class: 'btn p s' }, 'Verwalten') : h('button', { class: 'btn s' }, '➕ Bot hinzufügen'));
   }));
   const active = me.guilds.filter(g => g.lvl !== 'invite').length;
@@ -185,6 +195,7 @@ const renderGuild = tabId => {
   dirty = false;
   curTab = tabId;
   const tab = tabId ? tabById(tabId) : null;
+  LS.set('last', { g: G.guild.id, t: tab ? tab.id : null });
   crumb(h('a', { onclick: () => { if (confirmLeave()) servers(); } }, 'Meine Server'), tab ? h('a', { onclick: () => { if (confirmLeave()) renderGuild(); } }, G.guild.name) : h('b', null, G.guild.name), tab ? h('b', null, tab.name) : null);
   const go = t => () => { if (confirmLeave()) renderGuild(t); };
   let mode = 'simple';
@@ -195,8 +206,16 @@ const renderGuild = tabId => {
     h('div', { class: 'modesw' }, h('button', { type: 'button', 'data-mode': 'simple', class: mode === 'simple' ? 'on' : '', onclick: () => setMode('simple') }, '👶 Einfach'), h('button', { type: 'button', 'data-mode': 'all', class: mode === 'all' ? 'on' : '', onclick: () => setMode('all') }, '🧩 Alle Module')),
     h('input', { class: 'x', type: 'search', placeholder: 'Modul suchen …', oninput: e => { const v = e.target.value.toLowerCase(); side.classList.toggle('searching', !!v); side.querySelectorAll('a[data-n]').forEach(a => { a.style.display = a.dataset.n.includes(v) ? '' : 'none'; }); side.querySelectorAll('.sgt').forEach(s => { s.style.display = v ? 'none' : ''; }); } }),
     h('a', { class: tab ? '' : 'on', onclick: go() }, h('span', { class: 'e' }, '🏠'), 'Übersicht'),
-    G.groups.map(([name, ids]) => [h('div', { class: 'sgt', 'data-x': ids.map(tabById).filter(Boolean).some(vis) ? null : '1' }, name), ids.map(tabById).filter(Boolean).map(t =>
-      h('a', { class: tab && tab.id === t.id ? 'on' : '', 'data-x': vis(t) ? null : '1', 'data-n': t.name.toLowerCase(), onclick: go(t.id) }, h('span', { class: 'e' }, t.ic), t.name, t.sw ? h('i', { class: `d${G.values[t.sw] ? ' on' : ''}` }) : null))]));
+    G.groups.map(([name, ids]) => {
+      const ts = ids.map(tabById).filter(Boolean);
+      const closed = new Set(LS.get('sgClosed', []));
+      const cur = tab && ts.some(t => t.id === tab.id);
+      const sw = ts.filter(hasSw);
+      const grp = h('div', { class: `sg${closed.has(name) && !cur ? ' shut' : ''}` });
+      const head = h('div', { class: 'sgt', 'data-x': ts.some(vis) ? null : '1', onclick: () => { grp.classList.toggle('shut'); const c = new Set(LS.get('sgClosed', [])); grp.classList.contains('shut') ? c.add(name) : c.delete(name); LS.set('sgClosed', [...c]); } }, h('span', null, name), sw.length ? h('em', null, `${sw.filter(tabOn).length}/${sw.length}`) : null, h('b', null, '▾'));
+      grp.append(head, h('div', { class: 'sgl' }, ts.map(t => h('a', { class: tab && tab.id === t.id ? 'on' : '', 'data-x': vis(t) ? null : '1', 'data-n': t.name.toLowerCase(), onclick: go(t.id) }, h('span', { class: 'e' }, t.ic), h('span', { class: 'n' }, t.name), hasSw(t) ? h('i', { class: `d${tabOn(t) ? ' on' : ''}` }) : null))));
+      return grp;
+    }));
   const content = h('div', { class: 'content' }, h('div', { class: 'wrap' },
     h('div', { class: 'ghead' }, gicon(G.guild), h('div', null, h('h1', null, G.guild.name), h('span', null, `${fmt(G.guild.members)} Mitglieder · ${fmt(G.guild.online)} online`))),
     tab ? tabView(tab) : overview()));
@@ -210,6 +229,7 @@ const toggle = async (t, btn) => {
   try {
     const r = await request('POST', `/api/guild/${G.guild.id}/toggle`, { key: t.sw });
     G.values[t.sw] = r.value;
+    if (t.on != null) t.on = r.value;
     btn.classList.toggle('on', r.value);
     const dot = document.querySelector(`.side a[data-n="${CSS.escape(t.name.toLowerCase())}"] .d`);
     if (dot) dot.classList.toggle('on', r.value);
@@ -220,21 +240,29 @@ const toggle = async (t, btn) => {
 
 const overview = () => {
   const s = G.stats;
-  const stat = (v, l) => h('div', { class: 'stat' }, h('b', null, v), h('span', null, l));
+  const stat = (v, l, ic) => h('div', { class: 'stat' }, h('span', { class: 'si' }, ic), h('b', null, v), h('span', null, l));
   const done = G.checks.filter(c => c.ok).length;
+  const todo = G.checks.filter(c => !c.ok);
   const MED = ['🥇', '🥈', '🥉'];
+  const row = c => h('a', { class: c.ok ? 'ok' : '', onclick: () => renderGuild(c.tab) }, h('i', null, c.ok ? '✓' : ''), h('span', null, c.label), c.ok ? null : h('em', null, 'Einrichten →'));
+  const rest = [...todo.slice(4), ...G.checks.filter(c => c.ok)];
+  const all = G.groups.flatMap(([, ids]) => ids.map(tabById).filter(Boolean));
+  const active = all.filter(t => hasSw(t) && tabOn(t));
+  const allOpen = LS.get('ovAll', false);
   return [
-    h('div', { class: 'stats' }, stat(fmt(G.guild.members), 'Mitglieder'), stat(s.modules, 'Module aktiv'), stat(fmt(s.tracked), 'Mit Aktivität'), stat(fmt(s.warns), 'Verwarnungen'), stat(s.rating ? `${s.rating.avg.toFixed(1).replace('.', ',')} ★` : '–', `Ticket-Bewertung${s.rating ? ` (${s.rating.n})` : ''}`), stat(s.giveaways, 'Laufende Giveaways')),
+    h('div', { class: 'stats' }, stat(fmt(G.guild.members), 'Mitglieder', '👥'), stat(s.modules, 'Module aktiv', '🧩'), stat(fmt(s.tracked), 'Mit Aktivität', '📈'), stat(fmt(s.warns), 'Verwarnungen', '⚠️'), stat(s.rating ? `${s.rating.avg.toFixed(1).replace('.', ',')} ★` : '–', `Ticket-Bewertung${s.rating ? ` (${s.rating.n})` : ''}`, '⭐'), stat(s.giveaways, 'Giveaways', '🎁')),
     h('div', { class: 'grid2' },
-      h('section', { class: 'panel', style: 'margin:0' }, h('h2', null, 'Einrichtung'), h('p', null, `${done} von ${G.checks.length} Schritten erledigt`),
+      h('section', { class: 'panel', style: 'margin:0' }, h('h2', null, todo.length ? '🚀 Nächste Schritte' : '✅ Alles eingerichtet'), h('p', null, `${done} von ${G.checks.length} Schritten erledigt`),
         h('div', { class: 'pg' }, h('i', { style: `width:${Math.round((done / (G.checks.length || 1)) * 100)}%` })),
-        h('div', { class: 'check' }, G.checks.map(c => h('a', { class: c.ok ? 'ok' : '', onclick: () => renderGuild(c.tab) }, h('i', null, c.ok ? '✓' : ''), h('span', null, c.label))))),
-      h('section', { class: 'panel', style: 'margin:0' }, h('h2', null, 'Top 5'), h('p', null, 'Die aktivsten Mitglieder nach Level.'),
+        h('div', { class: 'check' }, todo.slice(0, 4).map(row), rest.length ? h('details', { class: 'more' }, h('summary', null, [todo.length > 4 ? `+ ${todo.length - 4} weitere offen` : '', todo.length > 4 && done ? ', ' : '', done ? `${done} erledigt` : ''].join('') + ' anzeigen'), rest.map(row)) : null)),
+      h('section', { class: 'panel', style: 'margin:0' }, h('h2', null, '🏆 Top 5'), h('p', null, 'Die aktivsten Mitglieder nach Level.'),
         s.top.length ? h('div', { class: 'lb' }, s.top.map((m, i) => h('div', null, h('b', null, MED[i] || `#${i + 1}`), h('span', null, m.name), h('em', null, `Level ${m.level}`)))) : h('p', { class: 'empty' }, 'Noch keine Aktivität.'))),
-    G.groups.map(([name, ids]) => h('section', { class: 'ovg', 'data-x': ids.map(tabById).filter(Boolean).some(t => t.simple) ? null : '1' }, h('h2', null, name), h('div', { class: 'mods' }, ids.map(tabById).filter(Boolean).map(t => {
-      const tg = t.sw ? h('button', { class: `tgl${G.values[t.sw] ? ' on' : ''}`, title: 'Ein/Aus', onclick: e => { e.stopPropagation(); toggle(t, e.currentTarget); } }) : null;
-      return h('div', { class: 'mod', 'data-x': t.simple ? null : '1', onclick: () => renderGuild(t.id) }, h('span', { class: 'e' }, t.ic), h('div', null, h('b', null, t.name), h('small', null, t.desc)), tg);
-    })))),
+    h('section', { class: 'panel' }, h('h2', null, `🟢 Deine aktiven Module (${active.length})`), active.length ? h('div', { class: 'act' }, active.map(t => h('a', { onclick: () => renderGuild(t.id) }, h('i'), `${t.ic} ${t.name}`))) : h('p', { class: 'empty' }, 'Noch keine Module aktiv. Schau bei „Alle Module“ unten oder nutze eine Server-Vorlage.')),
+    h('details', { class: 'allmods', open: allOpen || null, ontoggle: e => LS.set('ovAll', e.target.open) }, h('summary', null, '🧩 Alle Module ein- und ausschalten'),
+      G.groups.map(([name, ids]) => h('section', { class: 'ovg', 'data-x': ids.map(tabById).filter(Boolean).some(t => t.simple) ? null : '1' }, h('h2', null, name), h('div', { class: 'mods' }, ids.map(tabById).filter(Boolean).map(t => {
+        const tg = t.sw && t.on == null ? h('button', { class: `tgl${G.values[t.sw] ? ' on' : ''}`, title: 'Ein/Aus', onclick: e => { e.stopPropagation(); toggle(t, e.currentTarget); } }) : t.on != null ? h('span', { class: `pill${t.on ? ' on' : ''}`, style: 'margin:0' }, t.on ? 'an' : 'aus') : null;
+        return h('div', { class: 'mod', 'data-x': t.simple ? null : '1', onclick: () => renderGuild(t.id) }, h('span', { class: 'e' }, t.ic), h('div', null, h('b', null, t.name), h('small', null, t.desc)), tg);
+      }))))),
   ];
 };
 
@@ -296,6 +324,15 @@ const renderField = f => {
         fld('Was passiert mit Rolle B?', h('select', { class: 'x', 'data-k': `lkMode__${k}` }, MODES.map(([m, l]) => h('option', { value: m, selected: (lv.mode || 'sync') === m ? true : null }, l))), true))); }, 100, 'Regel hinzufügen');
     }
     case 'rnicks': return rep(v.roleNicks || [], (nv, i, key) => { const k = key || `n${i}`; return h('div', { class: 'card' }, repHead('🏷️ Name'), h('div', { class: 'fields' }, fld('Rolle', select(`rnRole__${k}`, L.role, nv.role)), fld('Name', txt(`rnFmt__${k}`, nv.fmt, '👑 Owner {name}', 40)))); }, 50, 'Name hinzufügen');
+    case 'sitems': {
+      const EFFS = [['', 'Kein Effekt'], ['coins2', '💰 Doppelte Coins (Stunden)'], ['xp2', '⚡ Doppelte XP (Stunden)'], ['shield', '🛡️ Raub-Schutz (Stunden)'], ['coins', '🪙 Gibt Coins (Anzahl)'], ['lootbox', '🎁 Lootbox (Coins-Wert)']];
+      const RARS = [['c', '⚪ Gewöhnlich'], ['r', '🔵 Selten'], ['e', '🟣 Episch'], ['l', '🟡 Legendär']];
+      const opt = (k, list, cur) => h('select', { class: 'x', 'data-k': k }, list.map(([m, l]) => h('option', { value: m, selected: (cur || list[0][0]) === m ? true : null }, l)));
+      return rep(v.shopItems || [], (it, i, key) => { const k = key || `s${i}`; return h('div', { class: 'card' }, repHead(`${it.e || '📦'} ${it.name || 'Neues Item'}`), h('input', { type: 'hidden', 'data-k': `siKey__${k}`, value: it.key || '' }), h('div', { class: 'fields' },
+        fld('Emoji', txt(`siE__${k}`, it.e, '🍕', 8)), fld('Name', txt(`siName__${k}`, it.name, 'Pizza', 40)), fld('Preis (Coins)', num(`siPrice__${k}`, it.price, 0, 1000000000, '50')), fld('Seltenheit', opt(`siRar__${k}`, RARS, it.rar)),
+        fld('Beschreibung', txt(`siDesc__${k}`, it.desc, 'Lecker und warm', 120), true), fld('Effekt beim Benutzen', opt(`siEff__${k}`, EFFS, it.eff || '')), fld('Effekt-Wert', num(`siVal__${k}`, it.val, 0, 1000000000, 'Stunden oder Coins')),
+        fld('Vorrat (0 = unbegrenzt)', num(`siStock__${k}`, it.stock || 0, 0, 1000000, '0')), fld('Rolle beim Benutzen (optional)', select(`siRole__${k}`, L.role, it.role)))); }, 40, 'Item hinzufügen');
+    }
     case 'tgroups': return rep(v.teamGroups || [], (gv, i, key) => { const k = key || `g${i}`; return h('div', { class: 'card' }, repHead(`${gv.emoji || '👥'} ${gv.name || 'Neue Gruppe'}`), h('input', { type: 'hidden', 'data-k': `tgKey__${k}`, value: gv.key || '' }), h('div', { class: 'fields' },
       fld('Name', txt(`tgName__${k}`, gv.name, 'z. B. Support-Team', 40)), fld('Emoji', txt(`tgEmoji__${k}`, gv.emoji, '🎧', 8)),
       fld('Leitungsrolle (verwaltet diese Gruppe)', select(`tgLead__${k}`, L.role, gv.lead)), fld('Farbe', h('input', { class: 'x', type: 'color', 'data-k': `tgColor__${k}`, value: /^#[0-9a-f]{6}$/i.test(gv.color || '') ? gv.color : '#5b8cff' })),
@@ -418,13 +455,23 @@ const tabView = tab => {
   const out = [];
   if (tab.fields.length) {
     const panel = h('section', { class: 'panel' }, h('h2', null, `${tab.ic} ${tab.name}`), h('p', null, tab.desc));
-    let grid = null;
-    for (const f of tab.fields) {
-      const sec = tab.sections[f[1]];
-      if (sec || !grid) { if (sec) panel.append(h('h3', { class: 'sec' }, sec)); grid = h('div', { class: 'fields' }); panel.append(grid); }
-      const el = renderField(f);
-      if (el) grid.append(...[el].flat(3).filter(Boolean));
-    }
+    const parts = [];
+    for (const f of tab.fields) { const sec = tab.sections[f[1]]; if (sec || !parts.length) parts.push({ h: sec, f: [] }); parts[parts.length - 1].f.push(f); }
+    const many = parts.length > 2;
+    const KO = `sec:${G.guild.id}:${tab.id}`;
+    let openSet = new Set();
+    try { openSet = new Set(JSON.parse(sessionStorage.getItem(KO) || '[]')); } catch {}
+    parts.forEach((p, i) => {
+      const grid = h('div', { class: 'fields' });
+      for (const f of p.f) { const el = renderField(f); if (el) grid.append(...[el].flat(3).filter(Boolean)); }
+      if (!p.h) return panel.append(grid);
+      if (!many || i === 0) return panel.append(h('h3', { class: 'sec' }, p.h), grid);
+      const n = p.f.filter(f => f[0] !== 'hint').length;
+      const sw = p.f[0][0] === 'sw' ? !!G.values[p.f[0][1]] : null;
+      const d = h('details', { class: 'fsec', open: openSet.has(i) || null, ontoggle: e => { e.target.open ? openSet.add(i) : openSet.delete(i); try { sessionStorage.setItem(KO, JSON.stringify([...openSet])); } catch {} } },
+        h('summary', null, h('b', null, p.h), sw == null ? null : h('em', { class: `pill${sw ? ' on' : ''}`, style: 'margin:0' }, sw ? 'an' : 'aus'), h('small', null, `${n} ${n === 1 ? 'Einstellung' : 'Einstellungen'}`)), grid);
+      panel.append(d);
+    });
     panel.addEventListener('input', markDirty);
     panel.addEventListener('change', markDirty);
     const btn = h('button', { class: 'btn p' }, 'Änderungen speichern');
@@ -456,6 +503,49 @@ const tabView = tab => {
   return out;
 };
 
+const applyTheme = t => { document.documentElement.dataset.theme = t; $('themeBtn').textContent = t === 'light' ? '☀️' : '🌙'; LS.set('theme', t); };
+applyTheme(LS.get('theme', 'dark'));
+$('themeBtn').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+let zoom = LS.get('zoom', 1);
+const applyZoom = z => { zoom = Math.max(0.7, Math.min(1.5, Math.round(z * 10) / 10)); document.body.style.zoom = zoom; LS.set('zoom', zoom); };
+applyZoom(zoom);
+const netState = () => $('offline').classList.toggle('on', !navigator.onLine);
+window.addEventListener('online', () => { netState(); toast('✅ Wieder online.', 'ok'); });
+window.addEventListener('offline', netState);
+netState();
+let palItems = [], palSel = 0;
+const palEntries = () => {
+  const out = [];
+  if (G) {
+    out.push({ ic: '🏠', t: 'Übersicht', s: G.guild.name, go: () => renderGuild() });
+    G.groups.forEach(([grp, ids]) => ids.map(tabById).filter(Boolean).forEach(t => out.push({ ic: t.ic, t: t.name, s: grp, k: `${t.name} ${t.desc || ''} ${grp}`, on: hasSw(t) ? tabOn(t) : null, go: () => renderGuild(t.id) })));
+  }
+  (me ? me.guilds : []).filter(g => g.lvl !== 'invite').forEach(g => out.push({ ic: '🗂️', t: g.name, s: 'Server wechseln', go: () => guild(g.id) }));
+  if (me) out.push({ ic: '🗂️', t: 'Meine Server', s: 'Serverliste', go: () => servers() }, { ic: '🔄', t: 'Neu laden', s: 'F5', go: () => G ? guild(G.guild.id, curTab) : start() }, { ic: '🌐', t: 'Website öffnen', s: 'Im Browser', go: () => B.openWeb('/') }, { ic: '🌗', t: 'Hell / Dunkel umschalten', s: 'Design', go: () => $('themeBtn').click() }, { ic: '⬆️', t: 'Nach Updates suchen', s: 'App', go: () => $('checkBtn').click() }, { ic: '⌨️', t: 'Tastenkürzel anzeigen', s: 'Hilfe', go: () => toast('Strg+K Suche · Strg+S Speichern · F5 Neu laden · Strg + / Strg - Zoom · Strg+0 Zoom zurücksetzen · Esc Schließen') });
+  return out;
+};
+const palRender = () => {
+  const q = $('palIn').value.toLowerCase().trim();
+  const words = q.split(/\s+/).filter(Boolean);
+  palItems = palEntries().map(e => { const hay = `${e.t} ${e.k || ''} ${e.s}`.toLowerCase(); const sc = !words.length ? 1 : words.every(w => hay.includes(w)) ? (e.t.toLowerCase().startsWith(words[0]) ? 3 : e.t.toLowerCase().includes(words[0]) ? 2 : 1) : 0; return { ...e, sc }; }).filter(e => e.sc).sort((a, b) => b.sc - a.sc).slice(0, 40);
+  palSel = Math.min(palSel, Math.max(0, palItems.length - 1));
+  $('palList').replaceChildren(...(palItems.length ? palItems.map((e, i) => h('div', { class: `pi${i === palSel ? ' on' : ''}`, onmousemove: () => { if (palSel !== i) { palSel = i; palRender(); } }, onclick: () => palGo(i) }, h('span', { class: 'e' }, e.ic), h('b', null, e.t), e.on == null ? null : h('i', { class: `d${e.on ? ' on' : ''}` }), h('small', null, e.s))) : [h('div', { class: 'empty', style: 'padding:14px' }, 'Nichts gefunden.')]));
+  const el = $('palList').querySelector('.pi.on'); if (el) el.scrollIntoView({ block: 'nearest' });
+};
+const palOpen = () => { if (!me) return; $('palOv').classList.add('on'); $('palIn').value = ''; palSel = 0; palRender(); setTimeout(() => $('palIn').focus(), 20); };
+const palClose = () => $('palOv').classList.remove('on');
+const palGo = i => { const e = palItems[i]; if (!e) return; palClose(); if (confirmLeave()) { dirty = false; e.go(); } };
+$('palIn').addEventListener('input', () => { palSel = 0; palRender(); });
+$('palIn').addEventListener('keydown', e => { if (e.key === 'ArrowDown') { e.preventDefault(); palSel = Math.min(palItems.length - 1, palSel + 1); palRender(); } else if (e.key === 'ArrowUp') { e.preventDefault(); palSel = Math.max(0, palSel - 1); palRender(); } else if (e.key === 'Enter') { e.preventDefault(); palGo(palSel); } else if (e.key === 'Escape') palClose(); });
+$('palOv').addEventListener('click', e => { if (e.target === $('palOv')) palClose(); });
+$('palBtn').onclick = palOpen;
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); $('palOv').classList.contains('on') ? palClose() : palOpen(); return; }
+  if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '=')) { e.preventDefault(); applyZoom(zoom + 0.1); toast(`🔍 Zoom ${Math.round(zoom * 100)} %`); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === '-') { e.preventDefault(); applyZoom(zoom - 0.1); toast(`🔍 Zoom ${Math.round(zoom * 100)} %`); return; }
+  if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); applyZoom(1); toast('🔍 Zoom 100 %'); return; }
+  if (e.key === 'Escape') { if ($('palOv').classList.contains('on')) palClose(); const m = document.querySelector('.menu.on'); if (m) m.classList.remove('on'); }
+});
 document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && saveBar && saveBar.classList.contains('on')) { e.preventDefault(); saveBar.querySelector('.btn.p').click(); }
   if (e.key === 'F5') { e.preventDefault(); if (!confirmLeave()) return; dirty = false; if (G) guild(G.guild.id, curTab); else start(); }

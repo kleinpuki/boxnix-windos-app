@@ -1,9 +1,13 @@
 {
-  "version": "2.12.0",
+  "version": "2.13.1",
   "changes": [
-    "Neu: Team-Verwaltung 2.0 mit Team-Gruppen und Rängen",
-    "Team-Dienst, Team-Übersicht pro Gruppe und Achievements einstellbar",
-    "Mitglieder direkt im Dashboard befördern, herabstufen, verwarnen und entfernen",
-    "Übersichtlicher: viele Module zu einer Seite zusammengefasst"
+    "Schnellsuche mit Strg + K: Module, Server und Aktionen sofort finden",
+    "Helles Design zum Umschalten oben rechts",
+    "Öffnet beim Start direkt den zuletzt benutzten Server",
+    "Lieblings-Server mit ★ oben anheften",
+    "Seitenleiste: Gruppen zum Einklappen mit „an/gesamt“-Zähler",
+    "Einstellungen in aufklappbaren Bereichen mit „an/aus“-Anzeige",
+    "Übersicht: nächste Schritte, aktive Module und alle Module zum Ausklappen",
+    "Zoom mit Strg + / Strg − und Hinweis, wenn das Internet weg ist"
   ]
 }

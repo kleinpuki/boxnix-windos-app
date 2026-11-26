@@ -11,7 +11,9 @@
   <div class="logo"><i></i>botnix<span>core</span></div>
   <div class="crumb" id="crumb"></div>
   <div class="grow"></div>
+  <button class="kbtn" id="palBtn" title="Schnellsuche (Strg + K)">🔍 Suchen <kbd>Strg K</kbd></button>
   <button class="upd" id="updBtn">⬆ Update verfügbar</button>
+  <button class="ib" id="themeBtn" title="Hell / Dunkel">🌙</button>
   <button class="ib" id="checkBtn" title="Nach Updates suchen">⇣</button>
   <div class="me" id="me"></div>
 </div>
@@ -33,6 +35,8 @@
   <div class="acts"><button class="btn p" id="newOk">Alles klar!</button></div>
 </div></div>
 
+<div class="offline" id="offline">📡 Keine Internetverbindung. Änderungen werden erst gespeichert, wenn du wieder online bist.</div>
+<div class="ov" id="palOv"><div class="pal"><input id="palIn" placeholder="Modul, Server oder Aktion suchen …" autocomplete="off"><div class="pall" id="palList"></div><div class="palf"><span><kbd>↑</kbd><kbd>↓</kbd> auswählen</span><span><kbd>Enter</kbd> öffnen</span><span><kbd>Esc</kbd> schließen</span></div></div></div>
 <div class="toast" id="toast"></div>
 <script src="shell.js"></script>
 </body>
