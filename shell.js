@@ -217,7 +217,7 @@ const renderGuild = tabId => {
       return grp;
     }));
   const content = h('div', { class: 'content' }, h('div', { class: 'wrap' },
-    h('div', { class: 'ghead' }, gicon(G.guild), h('div', null, h('h1', null, G.guild.name), h('span', null, `${fmt(G.guild.members)} Mitglieder · ${fmt(G.guild.online)} online`))),
+    h('div', { class: 'ghead' }, gicon(G.guild), h('div', null, h('h1', null, G.guild.name), h('span', null, `${fmt(G.guild.members)} Mitglieder | ${fmt(G.guild.online)} online`))),
     tab ? tabView(tab) : overview()));
   show(h('div', { class: 'dash' }, side, content));
   assistant(G.guild.id);
@@ -521,7 +521,7 @@ const palEntries = () => {
     G.groups.forEach(([grp, ids]) => ids.map(tabById).filter(Boolean).forEach(t => out.push({ ic: t.ic, t: t.name, s: grp, k: `${t.name} ${t.desc || ''} ${grp}`, on: hasSw(t) ? tabOn(t) : null, go: () => renderGuild(t.id) })));
   }
   (me ? me.guilds : []).filter(g => g.lvl !== 'invite').forEach(g => out.push({ ic: '🗂️', t: g.name, s: 'Server wechseln', go: () => guild(g.id) }));
-  if (me) out.push({ ic: '🗂️', t: 'Meine Server', s: 'Serverliste', go: () => servers() }, { ic: '🔄', t: 'Neu laden', s: 'F5', go: () => G ? guild(G.guild.id, curTab) : start() }, { ic: '🌐', t: 'Website öffnen', s: 'Im Browser', go: () => B.openWeb('/') }, { ic: '🌗', t: 'Hell / Dunkel umschalten', s: 'Design', go: () => $('themeBtn').click() }, { ic: '⬆️', t: 'Nach Updates suchen', s: 'App', go: () => $('checkBtn').click() }, { ic: '⌨️', t: 'Tastenkürzel anzeigen', s: 'Hilfe', go: () => toast('Strg+K Suche · Strg+S Speichern · F5 Neu laden · Strg + / Strg - Zoom · Strg+0 Zoom zurücksetzen · Esc Schließen') });
+  if (me) out.push({ ic: '🗂️', t: 'Meine Server', s: 'Serverliste', go: () => servers() }, { ic: '🔄', t: 'Neu laden', s: 'F5', go: () => G ? guild(G.guild.id, curTab) : start() }, { ic: '🌐', t: 'Website öffnen', s: 'Im Browser', go: () => B.openWeb('/') }, { ic: '🌗', t: 'Hell / Dunkel umschalten', s: 'Design', go: () => $('themeBtn').click() }, { ic: '⬆️', t: 'Nach Updates suchen', s: 'App', go: () => $('checkBtn').click() }, { ic: '⌨️', t: 'Tastenkürzel anzeigen', s: 'Hilfe', go: () => toast('Strg+K Suche | Strg+S Speichern | F5 Neu laden | Strg + / Strg - Zoom | Strg+0 Zoom zurücksetzen | Esc Schließen') });
   return out;
 };
 const palRender = () => {
@@ -557,7 +557,7 @@ const showUpdate = u => {
   pending = u;
   $('updBtn').classList.add('show');
   $('updCount').textContent = u.commits > 1 ? `${u.commits} Änderungen` : '';
-  $('updMeta').textContent = [u.author && `von ${u.author}`, u.date && fmtDate(u.date), u.latestSha && `#${u.latestSha.slice(0, 7)}`].filter(Boolean).join(' · ');
+  $('updMeta').textContent = [u.author && `von ${u.author}`, u.date && fmtDate(u.date), u.latestSha && `#${u.latestSha.slice(0, 7)}`].filter(Boolean).join(' | ');
   $('updMsg').textContent = u.message || 'Neues Update';
   $('updFiles').replaceChildren(...(u.files || []).slice(0, 60).map(f => h('li', { class: `st-${f.status}` }, h('b', null, ICON[f.status] || '•'), ` ${f.name}`)));
   $('updProg').classList.remove('on');

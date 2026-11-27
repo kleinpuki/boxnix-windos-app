@@ -1,13 +1,7 @@
 {
-  "version": "2.13.1",
+  "version": "2.13.2",
   "changes": [
-    "Schnellsuche mit Strg + K: Module, Server und Aktionen sofort finden",
-    "Helles Design zum Umschalten oben rechts",
-    "Öffnet beim Start direkt den zuletzt benutzten Server",
-    "Lieblings-Server mit ★ oben anheften",
-    "Seitenleiste: Gruppen zum Einklappen mit „an/gesamt“-Zähler",
-    "Einstellungen in aufklappbaren Bereichen mit „an/aus“-Anzeige",
-    "Übersicht: nächste Schritte, aktive Module und alle Module zum Ausklappen",
-    "Zoom mit Strg + / Strg − und Hinweis, wenn das Internet weg ist"
+    "Ruhigere Texte: Trennpunkte durch klare Trenner ersetzt",
+    "Kleine Fehlerbehebungen"
   ]
 }
