@@ -452,6 +452,7 @@ const loadExtras = async (tab, preHost, exHost, q = '') => {
 
 const tabView = tab => {
   if (tab.adminOnly && !G.isAdmin) return h('section', { class: 'panel' }, h('h2', null, `${tab.ic} ${tab.name}`), h('p', null, 'Nur der Besitzer und Administratoren können das sehen und ändern.'));
+  if (tab.betaLock) return h('section', { class: 'panel', style: 'border:2px dashed var(--a)' }, h('h2', null, `${tab.ic} ${tab.name}`), h('p', null, tab.betaLock));
   const out = [];
   if (tab.fields.length) {
     const panel = h('section', { class: 'panel' }, h('h2', null, `${tab.ic} ${tab.name}`), h('p', null, tab.desc));
@@ -600,4 +601,30 @@ const showChanges = i => {
   else if (i.seenVersion !== i.version) showChanges(i);
   if (i.pending) showUpdate({ ...i.pending, later: i.laterSha === i.pending.latestSha });
   start();
+})();
+
+(() => {
+  const d = new Date();
+  if (!(d.getMonth() === 11 || (d.getMonth() === 0 && d.getDate() <= 6))) return;
+  const c = document.createElement('canvas');
+  c.setAttribute('aria-hidden', 'true');
+  c.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:60';
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = '❄️'; b.title = 'Schnee an oder aus';
+  b.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:61;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(20,22,30,.8);font-size:18px;cursor:pointer';
+  document.body.append(c, b);
+  const x = c.getContext('2d');
+  const f = Array.from({ length: 80 }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: 1 + Math.random() * 3, s: .4 + Math.random() * 1.1, w: Math.random() * 6 }));
+  let raf = 0, on = localStorage.getItem('snow') !== '0' && !matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const size = () => { c.width = innerWidth; c.height = innerHeight; };
+  size(); addEventListener('resize', size);
+  const tick = () => {
+    x.clearRect(0, 0, c.width, c.height);
+    x.fillStyle = document.documentElement.dataset.theme === 'light' ? 'rgba(150,170,200,.7)' : 'rgba(255,255,255,.85)';
+    for (const p of f) { p.y += p.s; p.w += .01; p.x += Math.sin(p.w) * .4; if (p.y > c.height) { p.y = -5; p.x = Math.random() * c.width; } x.beginPath(); x.arc(p.x, p.y, p.r, 0, 7); x.fill(); }
+    raf = requestAnimationFrame(tick);
+  };
+  const set = v => { on = v; localStorage.setItem('snow', v ? '1' : '0'); b.style.opacity = v ? 1 : .55; cancelAnimationFrame(raf); x.clearRect(0, 0, c.width, c.height); if (v) tick(); };
+  b.addEventListener('click', () => set(!on));
+  set(on);
 })();

@@ -1,7 +1,7 @@
 {
-  "version": "2.13.2",
+  "version": "2.13.4",
   "changes": [
-    "Ruhigere Texte: Trennpunkte durch klare Trenner ersetzt",
-    "Kleine Fehlerbehebungen"
+    "🎄 Weihnachts-Update: Schnee in der App, mit ❄️ unten links an- und ausschalten",
+    "Einstellungen für das Weihnachts-Update im Dashboard"
   ]
 }
