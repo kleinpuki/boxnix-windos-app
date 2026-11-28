@@ -6,7 +6,7 @@ const { checkForUpdate, downloadAndApply } = require('./updater');
 const ENV = global.BOTNIX || { appDir: __dirname, bundledDir: __dirname, installedDir: path.join(app.getPath('userData'), 'app'), fromUpdate: false };
 const USER = app.getPath('userData');
 const STATE_FILE = path.join(USER, 'update-stand.json');
-const FIXED = { dashboardUrl: process.env.BOTNIX_URL || 'https://botnixcore.onrender.com', repo: 'kleinpuki/boxnix-windos-app', branch: '', githubToken: '', intervalMin: 10 };
+const FIXED = { dashboardUrl: process.env.BOTNIX_URL || 'https://botnixcore2.onrender.com', repo: 'kleinpuki/boxnix-windos-app', branch: '', githubToken: '', intervalMin: 10 };
 
 const readJson = (f, d) => { try { return { ...d, ...JSON.parse(fs.readFileSync(f, 'utf8')) }; } catch { return { ...d }; } };
 const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, JSON.stringify(v, null, 2)); };
